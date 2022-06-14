@@ -3,6 +3,7 @@ pub struct Node<F> {
     pub nodes: Vec<Node<F>>,
     pub key: String,
     pub handler: Option<F>,
+    pub is_wildcard: bool,
 }
 
 impl<F> Node<F> {
@@ -11,6 +12,7 @@ impl<F> Node<F> {
             nodes: Vec::new(),
             key: String::from(key),
             handler: None,
+            is_wildcard: key.starts_with('{') && key.ends_with('}'),
         }
     }
 
@@ -22,7 +24,10 @@ impl<F> Node<F> {
             }
             Some(("", path)) => self.insert(path, f),
             Some((root, path)) => {
-                let node = self.nodes.iter_mut().find(|m| root == &m.key);
+                let node = self
+                    .nodes
+                    .iter_mut()
+                    .find(|m| root == &m.key || m.is_wildcard);
                 match node {
                     Some(n) => n.insert(path, f),
                     None => {
@@ -40,18 +45,18 @@ impl<F> Node<F> {
         }
     }
 
-    pub fn get(&self, path: &str) -> Option<F> {
+    pub fn get(&self, path: &str) -> Option<&F> {
         match path.split_once('/') {
             Some((root, "")) => {
-                if root == &self.key {
-                    self.handler
+                if root == &self.key || self.is_wildcard {
+                    self.handler.as_ref()
                 } else {
                     None
                 }
             }
             Some(("", path)) => self.get(path),
             Some((root, path)) => {
-                let node = self.nodes.iter().find(|m| root == &m.key);
+                let node = self.nodes.iter().find(|m| root == &m.key || m.is_wildcard);
                 if let Some(node) = node {
                     node.get(path)
                 } else {
@@ -59,9 +64,9 @@ impl<F> Node<F> {
                 }
             }
             None => {
-                let node = self.nodes.iter().find(|m| path == &m.key);
+                let node = self.nodes.iter().find(|m| path == &m.key || m.is_wildcard);
                 if let Some(node) = node {
-                    node.handler
+                    node.handler.as_ref()
                 } else {
                     None
                 }
