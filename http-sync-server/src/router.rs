@@ -3,10 +3,8 @@ use colored::Colorize;
 use crate::{node::Node, response::Response};
 use std::{
     collections::HashMap,
-    future::Future,
     io::{BufRead, BufReader, Result},
     net::TcpStream,
-    pin::Pin,
 };
 
 #[derive(PartialEq, Eq, Hash)]
@@ -14,8 +12,7 @@ pub enum Method {
     GET,
 }
 
-pub type BoxedFuture<'a, T> = Pin<Box<dyn Future<Output = T> + Send + 'a>>;
-pub type HandlerFn = Box<dyn Fn(Response) -> BoxedFuture<'static, Result<()>>>;
+pub type HandlerFn = fn(Response) -> Result<()>;
 
 pub struct Router {
     routes: HashMap<Method, Node<HandlerFn>>,
@@ -28,16 +25,12 @@ impl Router {
         }
     }
 
-    pub fn insert<F, Fut>(&mut self, method: Method, path: &str, handler: F)
-    where
-        F: Fn(Response) -> Fut + Send + 'static,
-        Fut: Future<Output = Result<()>> + Send + 'static,
-    {
+    pub fn insert(&mut self, method: Method, path: &str, handler: HandlerFn) {
         let node = self.routes.entry(method).or_insert(Node::new("/"));
-        node.insert(path, Box::new(move |res| Box::pin(handler(res))));
+        node.insert(path, handler);
     }
 
-    pub async fn route_client(&self, client: TcpStream) -> Result<()> {
+    pub fn route_client(&self, client: TcpStream) -> Result<()> {
         let mut reader = BufReader::new(&client);
         let buf = reader.fill_buf()?;
 
@@ -64,17 +57,17 @@ impl Router {
             self.bad_request(client)
         } else {
             match (parts[0], parts[1]) {
-                ("GET", path) => self.handle(Method::GET, path, client).await,
+                ("GET", path) => self.handle(Method::GET, path, client),
                 _ => self.bad_request(client),
             }
         }
     }
 
-    pub async fn handle(&self, method: Method, resource: &str, client: TcpStream) -> Result<()> {
+    pub fn handle(&self, method: Method, resource: &str, client: TcpStream) -> Result<()> {
         let res = Response::new(client);
         if let Some(node) = self.routes.get(&method) {
             if let Some(handler) = node.get(resource) {
-                return handler(res).await;
+                return handler(res);
             }
         }
 

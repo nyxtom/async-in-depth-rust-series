@@ -1,6 +1,3 @@
-#![feature(trait_alias)]
-
-mod futures;
 mod node;
 mod response;
 mod router;
@@ -8,13 +5,12 @@ mod routes;
 mod thread_pool;
 mod worker;
 
+use crate::thread_pool::ThreadPool;
 use colored::*;
 use router::Router;
 use std::io::{Error, Result};
 use std::net::TcpListener;
 use std::sync::Arc;
-
-use crate::futures::executor::Executor;
 
 fn check_err<T: Ord + Default>(num: T) -> Result<T> {
     if num < T::default() {
@@ -47,18 +43,18 @@ fn main() -> Result<()> {
     for _ in 0..2 {
         let child_pid = fork()?;
         if child_pid == 0 {
-            let pool = Executor::new(4);
+            let pool = ThreadPool::new(4);
             for client in listener.incoming() {
                 if let Ok(client) = client {
                     let router = Arc::clone(&router);
-                    pool.spawn(async move {
+                    pool.execute(move || {
                         println!(
                             "{} [{:?}] client connected at {}",
                             format!("[{}]", std::process::id()).truecolor(0, 255, 136),
                             std::thread::current().id(),
                             client.peer_addr().unwrap()
                         );
-                        router.route_client(client).await.unwrap();
+                        router.route_client(client).unwrap();
                     });
                 }
             }

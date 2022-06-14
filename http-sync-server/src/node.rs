@@ -69,14 +69,15 @@ impl<F> Node<F> {
         }
     }
 }
-/*
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::router::HandlerFn;
 
     #[test]
     fn test_insert_routes() {
-        let mut root = Node::new("");
+        let mut root: Node<HandlerFn> = Node::new("");
         root.insert("/", |_| Ok(()));
         root.insert("/foo", |_| Ok(()));
         root.insert("/foo/bar", |_| Ok(()));
@@ -88,7 +89,7 @@ mod tests {
     fn test_get_route() {
         println!("{:?}", "foo".split_once('/'));
         println!("{:?}", "".split_once('/'));
-        let mut root = Node::new("");
+        let mut root: Node<HandlerFn> = Node::new("");
         root.insert("/", |_| Ok(()));
         root.insert("/foo/bar", |_| Ok(()));
         root.insert("/foo/foo", |_| Ok(()));
@@ -111,4 +112,3 @@ mod tests {
         println!("{:?}", root);
     }
 }
-*/
