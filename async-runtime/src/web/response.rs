@@ -56,11 +56,11 @@ impl Response {
     }
 
     pub async fn send_file(&mut self, code: i32, path: &str) -> Result<()> {
-        let mut contents = self.read_response_file(path.clone());
+        let contents = self.read_response_file(path.clone());
         let len = contents.len();
 
         let mime_type = self.parse_mime_type(path);
-        let mut content = format!(
+        let content = format!(
             "HTTP/1.0 {} {}
 content-type: {}; charset=UTF-8
 content-length: {}
@@ -72,12 +72,9 @@ content-length: {}
             len
         );
 
-        unsafe {
-            let mut bytes = content.as_bytes_mut();
-            self.client.write(&mut bytes).await?;
-        };
-
-        self.client.write(&mut contents).await?;
+        let bytes = content.as_bytes();
+        self.client.write(&bytes).await?;
+        self.client.write(&contents).await?;
         self.client.flush();
 
         println!(
